@@ -1,0 +1,49 @@
+name: ubuntu build
+on:
+  - push
+  - pull_request
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CC: ccache gcc
+      CXX: ccache g++
+    steps:
+      - uses: actions/checkout@v2.0.0
+      - name: Cache ccache
+        id: cache-ubuntu
+        uses: 1480c1/cache@mabs
+        with:
+          path: $HOME/.ccache
+          key: ${{ runner.os }}-ccache
+
+      - name: Cache apt packages
+        uses: 1480c1/cache@mabs
+        with:
+          path: /var/cache/apt/archives/
+          key: ${{ runner.os }}-apt
+
+      - name: First update
+        run: sudo apt-get update
+
+      - name: Install packages
+        run: sudo apt-get install -q -y autoconf make automake libtool ccache gcc g++
+
+      - name: Run autoreconf
+        run: perl -S /usr/bin/autoreconf -fiv
+
+      - name: Run Configure
+        run: ./configure --prefix=/
+
+      - name: Run make
+        run: make -j4
+
+      - name: Run install
+        run: sudo make install
+
+      - name: Print ccache info and clean pacman
+        run: |
+          sudo chown -R $USER: $HOME/.ccache
+          ccache -s
+          pacman -Sc --noconfirm
